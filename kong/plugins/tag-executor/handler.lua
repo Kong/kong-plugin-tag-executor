@@ -8,6 +8,14 @@ local TagExecutor = {
   NAME = "tag-executor"
 }
 
+--[[
+  Only the phases that can be configured on non-global plugins are triggered
+  by this plugin, so `certificate` and `rewrite` were omitted. This makes
+  sense based on the plugin design; might it be worth including the `ws_`
+  phases too? Otherwise, if this is just intended for some specific plugins
+  then perhaps only those should be made configurable (e.g. plugins that define
+  "invalid" phases could be disallowed, etc.).
+]]
 local PHASES = {
   rewrite       = "rewrite",
   access        = "access",
@@ -52,6 +60,13 @@ local function build_phase_predicate(phase)
 
 end
 
+--[[
+  Rather than computing which functions (phases) to execute, for every phase of
+  the tag-executor, for every request, depending on the route that was hit,
+  could it be better to do that once for each `route & phase` and then memoize
+  the invocation? This could be relevant for large configurations (many steps or
+  plugins to iterate through).
+]]
 local function invoke_plugins_for_phase(phase, plugins_by_phase, steps, route)
   local phase_plugins = plugins_by_phase[phase]
 
@@ -106,6 +121,13 @@ function TagExecutor:access(config)
   invoke_plugins_for_phase(PHASES.access, self.plugins_by_phase, config.tag_execute_steps, kong.router.get_route())
 end
 
+--[[
+  plugins that define `:response()` cannot currently be configured due to the
+  choice of implementing `:header_filter()` and `:body_filter()`,
+  (https://docs.konghq.com/gateway/latest/plugin-development/custom-logic/#available-contexts).
+  This is ok but maybe worth documenting. Perhaps, as mentioned above, such
+  plugins should not be made configurable either.
+]]
 function TagExecutor:header_filter(config)
   invoke_plugins_for_phase(PHASES.header_filter, self.plugins_by_phase, config.tag_execute_steps, kong.router.get_route())
 end
